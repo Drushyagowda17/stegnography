@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Steganography - Hide & Reveal Secrets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .preview-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-animation {
+            animation: slideInUp 0.5s ease;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tab-active {
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+        }
+
+        .tab-inactive {
+            border-bottom: 3px solid transparent;
+            color: #9ca3af;
+        }
+
+        .data-type-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 4px;
+        }
+
+        .badge-text {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .badge-audio {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .badge-video {
+            background: #ef4444;
+            color: white;
+        }
+
+        .badge-binary {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .data-info-box {
+            background: rgba(255, 255, 255, 0.15);
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen py-8 px-4">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <div class="flex items-center justify-center gap-3 mb-4">
+                <i class="fas fa-image text-white text-4xl"></i>
+                <h1 class="text-5xl font-bold text-white">Steganography</h1>
+            </div>
+            <p class="text-white text-lg opacity-90">Hide and reveal secrets within images</p>
+        </div>
+
+        <!-- Main Container -->
+        <div class="max-w-6xl mx-auto">
+            <!-- Tab Navigation -->
+            <div class="flex gap-4 mb-8 justify-center flex-wrap">
+                <button onclick="switchTab('encode')" class="tab-btn tab-active px-6 py-3 text-white font-semibold transition-all" id="encode-tab">
+                    <i class="fas fa-lock mr-2"></i>Hide Data
+                </button>
+                <button onclick="switchTab('decode')" class="tab-btn tab-inactive px-6 py-3 text-white font-semibold transition-all" id="decode-tab">
+                    <i class="fas fa-unlock mr-2"></i>Reveal Data
+                </button>
+            </div>
+
+            <!-- Encode Tab -->
+            <div id="encode-section" class="glass-effect rounded-2xl p-8 mb-8 card-hover">
+                <h2 class="text-3xl font-bold text-white mb-8">
+                    <i class="fas fa-lock text-blue-300 mr-3"></i>Hide Your Data
+                </h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Upload Section -->
+                    <div class="space-y-6">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="encode-image" accept="image/*" onchange="previewEncodeImage(event)">
+                            <label for="encode-image" class="block p-8 border-2 border-dashed border-white rounded-xl cursor-pointer hover:bg-white hover:bg-opacity-10 transition-all text-center">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-white mb-4 block"></i>
+                                <p class="text-white font-semibold">Click to upload image</p>
+                                <p class="text-white text-sm opacity-75">PNG, JPG, GIF up to 50MB</p>
+                            </label>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <div id="encode-preview" class="hidden">
+                            <p class="text-white text-sm font-semibold mb-2">Image Preview:</p>
+                            <img id="encode-preview-img" src="" alt="Preview" class="w-full rounded-lg max-h-64 object-cover">
+                        </div>
+
+                        <!-- Data Type Selection -->
+                        <div>
+                            <label class="block text-white font-semibold mb-3">Data Type to Hide</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="selectDataType('text')" class="data-type-btn px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold transition-all" data-type="text">
+                                    <i class="fas fa-font mr-2"></i>Text
+                                </button>
+                                <button onclick="selectDataType('audio')" class="data-type-btn px-4 py-2 rounded-lg bg-gray-600 text-white font-semibold transition-all" data-type="audio">
+                                    <i class="fas fa-music mr-2"></i>Audio
+                                </button>
+                                <button onclick="selectDataType('video')" class="data-type-btn px-4 py-2 rounded-lg bg-gray-600 text-white font-semibold transition-all" data-type="video">
+                                    <i class="fas fa-video mr-2"></i>Video
+                                </button>
+                                <button onclick="selectDataType('binary')" class="data-type-btn px-4 py-2 rounded-lg bg-gray-600 text-white font-semibold transition-all" data-type="binary">
+                                    <i class="fas fa-file mr-2"></i>Binary
+                                </button>
+                            </div>
+                            <input type="hidden" id="selected-data-type" value="text">
+                        </div>
+
+                        <!-- Message Input -->
+                        <div>
+                            <label class="block text-white font-semibold mb-3">Secret Data</label>
+                            <textarea id="encode-message" placeholder="Enter your secret message here..." class="w-full p-4 rounded-lg border-2 border-white border-opacity-20 bg-white bg-opacity-10 text-white placeholder-white placeholder-opacity-50 focus:outline-none focus:border-blue-300 resize-none" rows="6"></textarea>
+                            <p class="text-white text-xs opacity-75 mt-2">Max 100000 characters</p>
+                        </div>
+
+                        <!-- Encode Button -->
+                        <button onclick="encodeMessage()" class="btn-gradient w-full text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-lock"></i>
+                            <span>Hide Data in Image</span>
+                        </button>
+                    </div>
+
+                    <!-- Result Section -->
+                    <div class="space-y-6">
+                        <div class="bg-white bg-opacity-10 rounded-lg p-6">
+                            <p class="text-white font-semibold mb-4">
+                                <i class="fas fa-info-circle text-blue-300 mr-2"></i>How it works:
+                            </p>
+                            <ul class="text-white text-sm space-y-2 opacity-90">
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Select data type (Text/Audio/Video/Binary)</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Upload an image</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Enter your secret data</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Click hide to embed the data</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Download the encoded image</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Share it safely!</li>
+                            </ul>
+                        </div>
+
+                        <!-- Encoded Image Result -->
+                        <div id="encode-result" class="hidden">
+                            <p class="text-white text-sm font-semibold mb-2">Encoded Image:</p>
+                            <img id="encode-result-img" src="" alt="Encoded" class="w-full rounded-lg max-h-64 object-cover">
+                            <button onclick="downloadEncodedImage()" class="btn-gradient w-full text-white font-bold py-3 rounded-lg mt-4 flex items-center justify-center gap-2">
+                                <i class="fas fa-download"></i>
+                                <span>Download Encoded Image</span>
+                            </button>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="encode-loading" class="hidden text-center">
+                            <div class="spinner mx-auto mb-4"></div>
+                            <p class="text-white font-semibold">Hiding your data...</p>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div id="encode-error" class="hidden bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-4">
+                            <p class="text-red-200 text-sm" id="encode-error-text"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decode Tab -->
+            <div id="decode-section" class="hidden glass-effect rounded-2xl p-8 mb-8 card-hover">
+                <h2 class="text-3xl font-bold text-white mb-8">
+                    <i class="fas fa-unlock text-green-300 mr-3"></i>Reveal Hidden Data
+                </h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Upload Section -->
+                    <div class="space-y-6">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="decode-image" accept="image/*" onchange="previewDecodeImage(event)">
+                            <label for="decode-image" class="block p-8 border-2 border-dashed border-white rounded-xl cursor-pointer hover:bg-white hover:bg-opacity-10 transition-all text-center">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-white mb-4 block"></i>
+                                <p class="text-white font-semibold">Click to upload encoded image</p>
+                                <p class="text-white text-sm opacity-75">PNG, JPG, GIF up to 50MB</p>
+                            </label>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <div id="decode-preview" class="hidden">
+                            <p class="text-white text-sm font-semibold mb-2">Image Preview:</p>
+                            <img id="decode-preview-img" src="" alt="Preview" class="w-full rounded-lg max-h-64 object-cover">
+                        </div>
+
+                        <!-- Decode Button -->
+                        <button onclick="decodeMessage()" class="btn-gradient w-full text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-unlock"></i>
+                            <span>Reveal Hidden Data</span>
+                        </button>
+                    </div>
+
+                    <!-- Result Section -->
+                    <div class="space-y-6">
+                        <div class="bg-white bg-opacity-10 rounded-lg p-6">
+                            <p class="text-white font-semibold mb-4">
+                                <i class="fas fa-info-circle text-green-300 mr-2"></i>How it works:
+                            </p>
+                            <ul class="text-white text-sm space-y-2 opacity-90">
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Upload an encoded image</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Click reveal to extract the data</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>The hidden data will appear</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>See what type of data is hidden</li>
+                                <li><i class="fas fa-check text-green-400 mr-2"></i>Copy the data to clipboard</li>
+                            </ul>
+                        </div>
+
+                        <!-- Decoded Message Result -->
+                        <div id="decode-result" class="hidden">
+                            <p class="text-white text-sm font-semibold mb-2">Hidden Data Found!</p>
+                            
+                            <!-- Data Type Badge -->
+                            <div id="data-type-display" class="mb-3"></div>
+
+                            <!-- Data Info -->
+                            <div class="data-info-box">
+                                <p class="text-white text-xs opacity-75">Data Length: <span id="data-length" class="font-bold">0</span> characters</p>
+                            </div>
+
+                            <!-- Message Display -->
+                            <div class="bg-white bg-opacity-10 rounded-lg p-4 border border-white border-opacity-20 max-h-48 overflow-y-auto">
+                                <p id="decode-result-text" class="text-white break-words text-sm"></p>
+                            </div>
+
+                            <button onclick="copyToClipboard()" class="btn-gradient w-full text-white font-bold py-3 rounded-lg mt-4 flex items-center justify-center gap-2">
+                                <i class="fas fa-copy"></i>
+                                <span>Copy to Clipboard</span>
+                            </button>
+                        </div>
+
+                        <!-- No Data Found -->
+                        <div id="decode-no-data" class="hidden bg-yellow-500 bg-opacity-20 border border-yellow-500 rounded-lg p-4">
+                            <p class="text-yellow-200 text-sm">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                No hidden data found in this image. It appears to be a regular image.
+                            </p>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="decode-loading" class="hidden text-center">
+                            <div class="spinner mx-auto mb-4"></div>
+                            <p class="text-white font-semibold">Scanning for hidden data...</p>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div id="decode-error" class="hidden bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-4">
+                            <p class="text-red-200 text-sm" id="decode-error-text"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-white opacity-75 mt-12">
+                <p><i class="fas fa-shield-alt mr-2"></i>Your data is processed securely and never stored on our servers</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let encodedImageBlob = null;
+        let decodedMessage = null;
+        let selectedDataType = 'text';
+
+        function switchTab(tab) {
+            const encodeSection = document.getElementById('encode-section');
+            const decodeSection = document.getElementById('decode-section');
+            const encodeTab = document.getElementById('encode-tab');
+            const decodeTab = document.getElementById('decode-tab');
+
+            if (tab === 'encode') {
+                encodeSection.classList.remove('hidden');
+                decodeSection.classList.add('hidden');
+                encodeTab.classList.add('tab-active');
+                encodeTab.classList.remove('tab-inactive');
+                decodeTab.classList.remove('tab-active');
+                decodeTab.classList.add('tab-inactive');
+            } else {
+                encodeSection.classList.add('hidden');
+                decodeSection.classList.remove('hidden');
+                encodeTab.classList.remove('tab-active');
+                encodeTab.classList.add('tab-inactive');
+                decodeTab.classList.add('tab-active');
+                decodeTab.classList.remove('tab-inactive');
+            }
+        }
+
+        function selectDataType(type) {
+            selectedDataType = type;
+            document.getElementById('selected-data-type').value = type;
+            
+            // Update button styles
+            document.querySelectorAll('.data-type-btn').forEach(btn => {
+                if (btn.dataset.type === type) {
+                    btn.classList.remove('bg-gray-600');
+                    btn.classList.add('bg-blue-500');
+                } else {
+                    btn.classList.remove('bg-blue-500');
+                    btn.classList.add('bg-gray-600');
+                }
+            });
+        }
+
+        function previewEncodeImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('encode-preview-img').src = e.target.result;
+                    document.getElementById('encode-preview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function previewDecodeImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('decode-preview-img').src = e.target.result;
+                    document.getElementById('decode-preview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function encodeMessage() {
+            const imageInput = document.getElementById('encode-image');
+            const messageInput = document.getElementById('encode-message');
+            const loading = document.getElementById('encode-loading');
+            const error = document.getElementById('encode-error');
+            const result = document.getElementById('encode-result');
+
+            error.classList.add('hidden');
+            result.classList.add('hidden');
+
+            if (!imageInput.files[0]) {
+                showError('encode', 'Please select an image');
+                return;
+            }
+
+            if (!messageInput.value.trim()) {
+                showError('encode', 'Please enter data to hide');
+                return;
+            }
+
+            if (messageInput.value.length > 100000) {
+                showError('encode', 'Data is too long (max 100000 characters)');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('image', imageInput.files[0]);
+            formData.append('message', messageInput.value);
+            formData.append('data_type', selectedDataType);
+
+            try {
+                const response = await fetch(`${API_URL}/encode`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Encoding failed');
+                }
+
+                encodedImageBlob = await response.blob();
+                const url = URL.createObjectURL(encodedImageBlob);
+                document.getElementById('encode-result-img').src = url;
+                result.classList.remove('hidden');
+            } catch (err) {
+                showError('encode', err.message);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        async function decodeMessage() {
+            const imageInput = document.getElementById('decode-image');
+            const loading = document.getElementById('decode-loading');
+            const error = document.getElementById('decode-error');
+            const result = document.getElementById('decode-result');
+            const noData = document.getElementById('decode-no-data');
+
+            error.classList.add('hidden');
+            result.classList.add('hidden');
+            noData.classList.add('hidden');
+
+            if (!imageInput.files[0]) {
+                showError('decode', 'Please select an image');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('image', imageInput.files[0]);
+
+            try {
+                const response = await fetch(`${API_URL}/decode`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Decoding failed');
+                }
+
+                if (!data.has_data) {
+                    noData.classList.remove('hidden');
+                } else {
+                    decodedMessage = data.message;
+                    document.getElementById('decode-result-text').textContent = data.message;
+                    document.getElementById('data-length').textContent = data.length;
+                    
+                    // Display data type badge
+                    const typeDisplay = document.getElementById('data-type-display');
+                    const typeMap = {
+                        't': { icon: 'fa-font', label: 'Text', class: 'badge-text' },
+                        'a': { icon: 'fa-music', label: 'Audio', class: 'badge-audio' },
+                        'v': { icon: 'fa-video', label: 'Video', class: 'badge-video' },
+                        'b': { icon: 'fa-file', label: 'Binary', class: 'badge-binary' }
+                    };
+                    
+                    const typeInfo = typeMap[data.data_type] || typeMap['t'];
+                    typeDisplay.innerHTML = `<span class="data-type-badge ${typeInfo.class}"><i class="fas ${typeInfo.icon} mr-1"></i>${typeInfo.label}</span>`;
+                    
+                    result.classList.remove('hidden');
+                }
+            } catch (err) {
+                showError('decode', err.message);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function downloadEncodedImage() {
+            if (encodedImageBlob) {
+                const url = URL.createObjectURL(encodedImageBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'encoded_image.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function copyToClipboard() {
+            if (decodedMessage) {
+                navigator.clipboard.writeText(decodedMessage).then(() => {
+                    alert('Data copied to clipboard!');
+                });
+            }
+        }
+
+        function showError(tab, message) {
+            const errorDiv = document.getElementById(`${tab}-error`);
+            const errorText = document.getElementById(`${tab}-error-text`);
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
