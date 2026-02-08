@@ -1,3 +1,7 @@
+Download zip or clone the project from :
+https://github.com/Drushyagowda17/stegnography.git
+
+
 # Advanced Image Steganography System
 
 ## Project Overview
