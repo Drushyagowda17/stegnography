@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advanced Image Steganography System</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="bg"></div>
+    <header class="top">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <h1>Advanced Image Steganography</h1>
+          <p>Secure embedding, extraction, and intelligent detection</p>
+        </div>
+      </div>
+      <div class="status" id="globalStatus">Ready</div>
+    </header>
+
+    <main class="shell">
+      <nav class="tabs">
+        <button class="tab active" data-tab="embed">Embed</button>
+        <button class="tab" data-tab="extract">Extract</button>
+        <button class="tab" data-tab="detect">Detect</button>
+      </nav>
+
+      <section class="panel active" id="tab-embed">
+        <div class="panel-grid">
+          <div class="card">
+            <h2>Embed Data</h2>
+            <label class="field">
+              <span>Cover Image</span>
+              <input type="file" id="embedImage" accept="image/*" />
+            </label>
+            <label class="field">
+              <span>Secret Text</span>
+              <textarea id="embedText" rows="4" placeholder="Type secret text or upload a file"></textarea>
+            </label>
+            <label class="field">
+              <span>Secret File</span>
+              <input type="file" id="embedFile" />
+            </label>
+            <label class="field">
+              <span>Encryption Key</span>
+              <input type="password" id="embedKey" placeholder="Strong passphrase" />
+            </label>
+            <button class="primary" id="embedBtn">Generate Stego Image</button>
+            <div class="message" id="embedMessage"></div>
+          </div>
+          <div class="card preview">
+            <h3>Preview</h3>
+            <div class="preview-grid">
+              <div>
+                <span class="caption">Original</span>
+                <img id="embedOriginalPreview" alt="Original preview" />
+              </div>
+              <div>
+                <span class="caption">Stego</span>
+                <img id="embedStegoPreview" alt="Stego preview" />
+              </div>
+            </div>
+            <div class="metrics" id="embedMetrics">
+              <div>MSE: <span id="mse">-</span></div>
+              <div>PSNR: <span id="psnr">-</span></div>
+              <div>Capacity: <span id="capacity">-</span></div>
+              <div>Used: <span id="used">-</span></div>
+            </div>
+            <a id="downloadStego" class="link" download="stego.png">Download Stego Image</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="tab-extract">
+        <div class="panel-grid">
+          <div class="card">
+            <h2>Extract Data</h2>
+            <label class="field">
+              <span>Stego Image</span>
+              <input type="file" id="extractImage" accept="image/*" />
+            </label>
+            <label class="field">
+              <span>Encryption Key</span>
+              <input type="password" id="extractKey" />
+            </label>
+            <button class="primary" id="extractBtn">Extract</button>
+            <div class="message" id="extractMessage"></div>
+          </div>
+          <div class="card">
+            <h3>Extraction Result</h3>
+            <div class="result-block">
+              <div>Filename: <span id="extractFilename">-</span></div>
+              <div>SHA-256: <span id="extractHash">-</span></div>
+              <div>Integrity: <span id="extractIntegrity">-</span></div>
+            </div>
+            <label class="field">
+              <span>Extracted Data (Preview)</span>
+              <textarea id="extractPreview" rows="8" readonly></textarea>
+            </label>
+            <a id="downloadExtract" class="link" download>Download Extracted File</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="tab-detect">
+        <div class="panel-grid">
+          <div class="card">
+            <h2>Detect Hidden Data</h2>
+            <label class="field">
+              <span>Image for Analysis</span>
+              <input type="file" id="detectImage" accept="image/*" />
+            </label>
+            <button class="primary" id="detectBtn">Analyze</button>
+            <div class="message" id="detectMessage"></div>
+          </div>
+          <div class="card">
+            <h3>Detection Result</h3>
+            <div class="result-block">
+              <div>Probability Score: <span id="detectScore">-</span></div>
+              <div>Verdict: <span id="detectVerdict">-</span></div>
+            </div>
+            <img id="detectPreview" alt="Detection preview" />
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <span id="loaderText">Processing</span>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

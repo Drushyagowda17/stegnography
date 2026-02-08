@@ -1,0 +1,6 @@
+fastapi==0.115.6
+uvicorn==0.30.6
+numpy==1.26.4
+Pillow==10.4.0
+cryptography==42.0.8
+opencv-python==4.10.0.84
