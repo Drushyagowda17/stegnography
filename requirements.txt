@@ -4,3 +4,4 @@ numpy==1.26.4
 Pillow==10.4.0
 cryptography==42.0.8
 opencv-python==4.10.0.84
+python-multipart==0.0.9

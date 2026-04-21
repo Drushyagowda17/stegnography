@@ -6,6 +6,7 @@ import io
 import os
 import struct
 import zlib
+import sqlite3
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -24,6 +25,35 @@ except Exception as exc:  # pragma: no cover
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(APP_DIR, "static")
+DB_PATH = os.path.join(APP_DIR, "steganography.db")
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            action TEXT,
+            filename TEXT,
+            details TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def log_history(action: str, filename: str, details: str):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("INSERT INTO history (action, filename, details) VALUES (?, ?, ?)",
+                  (action, filename, details))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Failed to log history: {e}")
 
 MAGIC = b"STG1"
 HEADER_FMT = ">4sI16s12s"
@@ -107,7 +137,9 @@ def array_to_png_bytes(arr: np.ndarray) -> bytes:
 def compute_edge_depth_map(arr: np.ndarray) -> np.ndarray:
     if cv2 is None:
         raise RuntimeError("OpenCV is required for adaptive embedding.")
-    gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+    # invariant array: mask out the LSBs to ensure depth map is identical before and after embedding
+    invariant_arr = arr & 0xFC
+    gray = cv2.cvtColor(invariant_arr, cv2.COLOR_RGB2GRAY)
     edges = cv2.Laplacian(gray, cv2.CV_64F)
     mag = np.abs(edges)
     max_val = mag.max() if mag.size else 0.0
@@ -220,18 +252,40 @@ def detect_steg(arr: np.ndarray) -> Tuple[float, str]:
         p = counts / (counts.sum() + 1e-9)
         entropy = -np.sum(p * np.log2(p + 1e-12))
         entropies.append(entropy)
+        
         expected = counts.sum() / 2.0
         chi = float(np.sum((counts - expected) ** 2 / (expected + 1e-9)))
         chis.append(chi)
+        
         if len(lsb) > 1:
-            corrs.append(float(np.corrcoef(lsb[:-1], lsb[1:])[0, 1]))
+            swaps = np.sum(lsb[:-1] != lsb[1:])
+            corrs.append(float(swaps / (len(lsb) - 1)))
         else:
-            corrs.append(0.0)
-    entropy_avg = float(np.mean(entropies) / 1.0)
-    chi_norm = float(np.mean(chis) / 5.0)
-    corr_avg = float(np.mean(np.abs(corrs)))
-    score = 0.55 * entropy_avg + 0.25 * (1.0 / (1.0 + chi_norm)) + 0.20 * (1.0 - corr_avg)
-    label = "Likely contains hidden data" if score >= 0.62 else "Likely clean image"
+            corrs.append(0.5)
+            
+    entropy_avg = float(np.mean(entropies))
+    chi_val = float(np.mean(chis))
+    swap_avg = float(np.mean(corrs))
+    
+    score = 0.0
+    if entropy_avg > 0.999:
+        score += 0.4
+    elif entropy_avg > 0.98:
+        score += 0.2
+        
+    if chi_val < 50:
+        score += 0.4
+    elif chi_val < 500:
+        score += 0.2
+        
+    if swap_avg > 0.49 and swap_avg < 0.51:
+        score += 0.2
+        
+    score = min(score, 0.99)
+    if entropy_avg < 0.5:
+        score = 0.01  # mostly blank image
+        
+    label = "Likely contains hidden data" if score >= 0.7 else "Likely clean image"
     return score, label
 
 
@@ -274,6 +328,9 @@ async def embed(
     bits = bits_from_bytes(payload)
     stego = embed_bits(arr, bits, key)
     metrics = compute_metrics(arr, stego, len(bits))
+    
+    log_history("Embed", filename, f"MSE: {metrics.mse:.4f}, PSNR: {metrics.psnr:.2f}")
+    
     stego_png = array_to_png_bytes(stego)
     encoded = base64.b64encode(stego_png).decode("ascii")
     return JSONResponse(
@@ -300,18 +357,26 @@ async def extract(
     img_bytes = await image.read()
     arr = image_to_array(img_bytes)
 
-    header_bits = extract_bits(arr, HEADER_LEN * 8, key)
-    header = bytes_from_bits(header_bits)
-    magic, payload_len, salt, nonce = struct.unpack(HEADER_FMT, header)
-    if magic != MAGIC:
-        raise HTTPException(status_code=400, detail="No hidden data found or wrong key.")
-    total_bits = (HEADER_LEN + payload_len) * 8
-    all_bits = extract_bits(arr, total_bits, key)
-    payload_bytes = bytes_from_bits(all_bits)[HEADER_LEN:]
-    plaintext = decrypt_payload(payload_bytes, key, salt, nonce)
-    expected_hash, filename, data = parse_inner_payload(plaintext)
+    try:
+        header_bits = extract_bits(arr, HEADER_LEN * 8, key)
+        header = bytes_from_bits(header_bits)
+        magic, payload_len, salt, nonce = struct.unpack(HEADER_FMT, header)
+        if magic != MAGIC:
+            raise HTTPException(status_code=400, detail="No hidden data found or wrong key.")
+        total_bits = (HEADER_LEN + payload_len) * 8
+        all_bits = extract_bits(arr, total_bits, key)
+        payload_bytes = bytes_from_bits(all_bits)[HEADER_LEN:]
+        plaintext = decrypt_payload(payload_bytes, key, salt, nonce)
+        expected_hash, filename, data = parse_inner_payload(plaintext)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to extract. Wrong key or corrupted image.")
     actual_hash = hashlib.sha256(data).digest()
     verified = expected_hash == actual_hash
+    
+    log_history("Extract", filename or "extracted.bin", f"Verified: {verified}")
+    
     data_b64 = base64.b64encode(data).decode("ascii")
     return JSONResponse(
         {
@@ -330,4 +395,21 @@ async def detect(image: UploadFile = File(...)) -> JSONResponse:
     img_bytes = await image.read()
     arr = image_to_array(img_bytes)
     score, label = detect_steg(arr)
+    
+    log_history("Detect", image.filename or "unknown", f"Verdict: {label} (Score: {score:.3f})")
+    
     return JSONResponse({"score": score, "label": label})
+
+@app.get("/api/history")
+def get_history() -> JSONResponse:
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        # Get the latest 100 history records
+        c.execute("SELECT id, datetime(timestamp, 'localtime') as timestamp, action, filename, details FROM history ORDER BY id DESC LIMIT 100")
+        rows = c.fetchall()
+        conn.close()
+        return JSONResponse([dict(row) for row in rows])
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)

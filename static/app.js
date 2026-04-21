@@ -14,6 +14,10 @@ tabs.forEach((tab) => {
     tab.classList.add("active");
     const target = document.querySelector(`#tab-${tab.dataset.tab}`);
     if (target) target.classList.add("active");
+    
+    if (tab.dataset.tab === "history") {
+      fetchHistory();
+    }
   });
 });
 
@@ -167,3 +171,55 @@ $("detectBtn").addEventListener("click", async () => {
     toggleLoader(false);
   }
 });
+
+const fetchHistory = async () => {
+  const message = $("historyMessage");
+  if (!message) return;
+  message.textContent = "";
+  setStatus("Fetching history...");
+  toggleLoader(true, "Loading History");
+  
+  try {
+    const res = await fetch("/api/history");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to fetch history.");
+    
+    const tbody = $("historyTableBody");
+    tbody.innerHTML = "";
+    
+    if (data.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='5' style='text-align: center; padding: 1rem; color: var(--text-muted);'>No history found</td></tr>";
+    } else {
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border)";
+        tr.innerHTML = `
+          <td style="padding: 0.75rem 0.5rem; color: var(--primary);">${row.id}</td>
+          <td style="padding: 0.75rem 0.5rem;">${row.timestamp}</td>
+          <td style="padding: 0.75rem 0.5rem;">
+            <span style="background: rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+              ${row.action}
+            </span>
+          </td>
+          <td style="padding: 0.75rem 0.5rem; word-break: break-all;">${row.filename}</td>
+          <td style="padding: 0.75rem 0.5rem;">${row.details}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    setStatus("Ready");
+  } catch (err) {
+    message.textContent = err.message;
+    setStatus("Error");
+  } finally {
+    toggleLoader(false);
+  }
+};
+
+$("refreshHistoryBtn")?.addEventListener("click", fetchHistory);
+
+if (window.location.protocol === 'file:') {
+  setTimeout(() => {
+    alert("Warning: You have opened this file using the 'file://' protocol. API requests will fail with 'failed to fetch'. Please run the server using 'python -m uvicorn main:app' and open http://127.0.0.1:8000 in your browser.");
+  }, 1000);
+}

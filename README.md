@@ -35,26 +35,32 @@ pip install -r requirements.txt
 
 ## Run Backend and Frontend
 ```bash
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
-Open the app at `http://127.0.0.1:8000`.
+Open your web browser and navigate to `http://127.0.0.1:8000`. 
+*(Note: Do not open `index.html` via `file:///` in your browser. Access the application through the local web server URL to avoid "failed to fetch" CORS issues).*
 
 ## Usage
-### Embed
+### 1. Embed
 1. Upload a cover image.
-2. Provide secret text or a secret file.
+2. Provide secret text or a secret file to hide inside the image.
 3. Enter an encryption key.
-4. Generate and download the stego image.
+4. Generate the stego image. Quality metrics (MSE, PSNR) are displayed alongside the download link.
 
-### Extract
+### 2. Extract
 1. Upload the stego image.
-2. Enter the correct key.
-3. Download the extracted file and verify integrity.
+2. Enter the exact encryption key used during embedding.
+3. Download the extracted file and see integrity verification properly displayed.
 
-### Detect
-1. Upload any image.
-2. Review the probability score and verdict.
+### 3. Detect
+1. Upload any image for inspection.
+2. Review the probability score and verdict (e.g. "Likely contains hidden data").
+
+### 4. History (Database)
+1. Navigate to the **History** tab.
+2. Click **Refresh History**.
+3. A table will display the last 100 system queries loaded dynamically from the local SQLite `steganography.db` database.
 
 ## Sample Inputs and Outputs
 - Input: `cover.png` + `secret.txt` with a strong key.
